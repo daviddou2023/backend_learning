@@ -1,6 +1,6 @@
 # 目标是：提交 BV 号后写入 SQLite 文件，返回整数 task_id；停止并重启服务后，还能用该 ID 查到 PENDING 任务。
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-from sqlalchemy import String
+from sqlalchemy import String, Text
 from fastapi import Depends, FastAPI, HTTPException
 from pydantic import BaseModel, Field
 from typing import Annotated
@@ -30,6 +30,8 @@ class GetResponse(BaseModel):
     task_id: int
     bvid: str
     status: Status
+    result: str | None = None
+    error: str | None = None
 
 
 
@@ -41,6 +43,10 @@ class Task(Base):
     # 保存用户提交的 BV 号
     # 创建时写入 PENDING
     status: Mapped[str] = mapped_column(String(20), nullable=False)
+
+    result: Mapped[str | None] = mapped_column(Text, nullable=True)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+
 
     
 DATABASE_URL = "sqlite+aiosqlite:///./tasks.db"
@@ -84,6 +90,8 @@ async def create_task(
 
     return {"task_id": task_id, "status": Status.PENDING}
 
+
+
 @app.get("/tasks/{task_id}")
 async def get_task(
     task_id: int,
@@ -96,6 +104,8 @@ async def get_task(
     get_response = GetResponse(
         task_id=task.id, 
         bvid=task.bvid, 
-        status=task.status
+        status=task.status,
+        result=task.result,
+        error=task.error,
     )
     return get_response
